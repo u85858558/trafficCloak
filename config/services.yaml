@@ -20,5 +20,15 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
+    App\Command\DnsLookupCommand:
+        arguments:
+            $dataDir: '%kernel.project_dir%/data'
+        tags:
+            - { name: 'console.command' }
+
+    App\Service\DomainLookupService:
+        arguments:
+            $logger: '@logger'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
