@@ -32,7 +32,6 @@ class MainCommand extends Command
             ->setDescription('Start the TrafficCloak service.')
             ->addOption('datadir', null, InputOption::VALUE_REQUIRED, 'Data directory', getcwd() . '/data')
             ->addOption('daemon', 'd', InputOption::VALUE_NONE, 'Run as a daemon')
-            ->addOption('verbose', 'v', InputOption::VALUE_NONE, 'Increase logging')
             ->addOption('logfile', null, InputOption::VALUE_REQUIRED, 'Log to this file. Default is stdout.', null)
             ->addOption('pidfile', null, InputOption::VALUE_REQUIRED, 'Save process PID to this file.', '/tmp/traffic.pid');
     }
@@ -40,27 +39,26 @@ class MainCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $logfile = $input->getOption('logfile') ?? 'php://stdout';
-        $pidfile = $input->getOption('pidfile');
+        $pidFile = $input->getOption('pidfile');
         $isDaemon = $input->getOption('daemon');
-        $datadir = $input->getOption('datadir');
-        $verbose = $input->getOption('verbose');
+        $dataDir = $input->getOption('datadir');
 
         $logger = new ConsoleLogger($output);
 
         if ($isDaemon) {
             $logger->info('Running in daemon mode...');
-            $this->daemonize($logger, $logfile, $pidfile, $datadir);
+            $this->daemonize($logger, $logfile, $pidFile, $dataDir);
         } else {
             $logger->info('Running in normal mode...');
-            $this->startService($logger, $datadir);
+            $this->startService($logger, $dataDir);
         }
 
         return Command::SUCCESS;
     }
 
-    private function daemonize($logger, $logfile, $pidfile, $datadir)
+    private function daemonize($logger, $logfile, $pidFile, $dataDir)
     {
-        if (file_exists($pidfile)) {
+        if (file_exists($pidFile)) {
             $logger->error('Daemon is already running. PID file exists.');
             return;
         }
@@ -72,7 +70,7 @@ class MainCommand extends Command
         }
 
         if ($pid) {
-            file_put_contents($pidfile, $pid);
+            file_put_contents($pidFile, $pid);
             exit(0);
         }
 
@@ -87,12 +85,12 @@ class MainCommand extends Command
             fopen($logfile, 'a');
         }
 
-        $this->startService($logger, $datadir);
+        $this->startService($logger, $dataDir);
     }
 
-    private function startService($logger, $datadir)
+    private function startService($logger, $dataDir)
     {
-        $csvFile = $datadir . '/top-1m.csv';
+        $csvFile = $dataDir . '/top-1m.csv';
 
         if (!file_exists($csvFile)) {
             $logger->error("CSV file not found at: {$csvFile}");
