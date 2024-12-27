@@ -6,12 +6,12 @@ stop:
 	docker-compose stop
 
 start:
-	php bin/console app:traffic-daemon
+	docker-compose exec app bash php bin/console app:traffic-daemon
 
 run:
-	php bin/console app:main --datadir=./data
+	docker-compose exec app bash php bin/console app:main --datadir=./data
 
 daemon:
-	php bin/console app:main --daemon --datadir=/data/top-1m.csv --logfile=/var/log/traffic.log
+	docker-compose exec app bash php bin/console app:main --daemon --datadir=/data/top-1m.csv --logfile=/var/log/traffic.log
 
 
