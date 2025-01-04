@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Helper\SentenceGenerator;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
 use Facebook\WebDriver\WebDriverBy;
@@ -12,15 +13,33 @@ class GoogleSearchService
 {
     private const GOOGLE_BASE_URL = 'https://www.google.com';
     private LoggerInterface $logger;
+    private SentenceGenerator $sentenceGenerator;
 
     public function __construct(LoggerInterface $logger)
     {
         $this->logger = $logger;
+        $this->sentenceGenerator = new SentenceGenerator();
+        $this->fill();
     }
 
+    /**
+     * @throws \Exception
+     */
+    private function fill()
+    {
+        $this->sentenceGenerator->loadTemplatesFromFile('data/sentence.txt');
+        $this->sentenceGenerator->addWordPoolFromFile("[noun]", "data/nouns.txt");
+        $this->sentenceGenerator->addWordPoolFromFile("[object]", "data/object.txt");
+        $this->sentenceGenerator->addWordPoolFromFile("[verb]", "data/verb.txt");
+        $this->sentenceGenerator->addWordPoolFromFile("[number]", "data/number.txt");
+    }
+
+    /**
+     * @throws \Exception
+     */
     public function search(): void
     {
-        $keywords = $this->getKeywords(3);
+        $keywords = $this->getKeywords();
         $this->logSearch($keywords);
 
         $driver = $this->getBrowser();
@@ -74,12 +93,13 @@ class GoogleSearchService
 
     /**
      * Replace with actual logic to retrieve keywords
-     * @param int $count
      * @return string[]
+     * @throws \Exception
      */
-    private function getKeywords(int $count): array
+    private function getKeywords(): array
     {
-        return ['keyword1', 'keyword2', 'keyword3'];
+        $sentence = $this->sentenceGenerator->generateSentence();
+        return [$sentence];
     }
 
     private function urlIsAbsolute(string $url): bool

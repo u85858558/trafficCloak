@@ -101,7 +101,7 @@ class MainCommand extends Command
             try {
                 $this->lookupService->lookupDomains($csvFile);
                 $logger->info('Task executed. Sleeping for 60 seconds...');
-                sleep(60);
+                sleep(3);
             } catch (\Exception $e) {
                 $logger->error('Error occurred: ' . $e->getMessage());
             }
