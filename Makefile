@@ -14,4 +14,5 @@ run:
 daemon:
 	docker-compose exec app bash php bin/console app:main --daemon --datadir=/data/top-1m.csv --logfile=/var/log/traffic.log
 
-
+shell:
+	docker-compose exec app bash

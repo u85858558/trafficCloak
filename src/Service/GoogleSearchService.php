@@ -15,6 +15,9 @@ class GoogleSearchService
     private LoggerInterface $logger;
     private SentenceGenerator $sentenceGenerator;
 
+    /**
+     * @throws \Exception
+     */
     public function __construct(LoggerInterface $logger)
     {
         $this->logger = $logger;
@@ -60,10 +63,9 @@ class GoogleSearchService
     private function performSearch($driver, array $keywords): void
     {
         $driver->get(self::GOOGLE_BASE_URL);
-        $searchBox = $driver->findElement(WebDriverBy::cssSelector('input[name=q]'));
+        $searchBox = $driver->findElement(WebDriverBy::name('q'));
         $searchBox->sendKeys(implode(' ', $keywords));
         $searchBox->submit();
-
         $resultsText = $driver->findElement(WebDriverBy::id('result-stats'))->getText();
         $this->logger->debug('Search results: ' . $resultsText);
     }
