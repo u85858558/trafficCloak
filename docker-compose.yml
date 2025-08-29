@@ -2,12 +2,16 @@ version: "3.9"
 services:
   app:
     platform: linux/amd64
-    image: php:8.2-cli
+    image: php:8.3-cli
     working_dir: /app
     volumes:
       - .:/app
       - ./docker/php.ini:/usr/local/etc/php/php.ini
-    command: php -S 0.0.0.0:8000 -t public
+    command: |
+      sh -c '
+        docker-php-ext-install pcntl && 
+        php -S 0.0.0.0:8000 -t public
+      '
     environment:
       - APP_ENV=dev
     depends_on:
@@ -34,7 +38,6 @@ services:
       - "4444:4444"
     networks:
       - symfony_network
-
 
 networks:
   symfony_network:

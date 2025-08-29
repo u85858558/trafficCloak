@@ -7,22 +7,18 @@ namespace App\Command;
 use App\Service\DomainLookupService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Logger\ConsoleLogger;
+use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(name: 'app:main')]
 class MainCommand extends Command
 {
     protected static string $defaultName = 'app:main';
 
-    private DomainLookupService $lookupService;
-
-    public function __construct(DomainLookupService $lookupService)
+    public function __construct(private readonly DomainLookupService $lookupService)
     {
-        $this->lookupService = $lookupService;
         parent::__construct();
     }
 
@@ -56,7 +52,7 @@ class MainCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function daemonize($logger, $logfile, $pidFile, $dataDir)
+    private function daemonize(\Symfony\Component\Console\Logger\ConsoleLogger $logger, $logfile, $pidFile, $dataDir): void
     {
         if (file_exists($pidFile)) {
             $logger->error('Daemon is already running. PID file exists.');
@@ -69,7 +65,7 @@ class MainCommand extends Command
             return;
         }
 
-        if ($pid) {
+        if ($pid !== 0) {
             file_put_contents($pidFile, $pid);
             exit(0);
         }
@@ -88,11 +84,11 @@ class MainCommand extends Command
         $this->startService($logger, $dataDir);
     }
 
-    private function startService($logger, $dataDir)
+    private function startService($logger, string $dataDir): void
     {
         $csvFile = $dataDir . '/top-1m.csv';
 
-        if (!file_exists($csvFile)) {
+        if (! file_exists($csvFile)) {
             $logger->error("CSV file not found at: {$csvFile}");
             return;
         }

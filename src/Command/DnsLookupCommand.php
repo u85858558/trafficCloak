@@ -13,11 +13,8 @@ class DnsLookupCommand extends Command
 {
     protected static string $defaultName = 'app:dns-lookup';
 
-    private string $dataDir;
-
-    public function __construct(string $dataDir)
+    public function __construct(private readonly string $dataDir)
     {
-        $this->dataDir = $dataDir;
         parent::__construct();
     }
 
@@ -34,7 +31,7 @@ class DnsLookupCommand extends Command
 
         $csvFile = $this->dataDir . '/top-1m.csv';
 
-        if (!file_exists($csvFile) || !is_readable($csvFile)) {
+        if (! file_exists($csvFile) || ! is_readable($csvFile)) {
             $io->error('The CSV file could not be found or is not readable.');
             return Command::FAILURE;
         }
@@ -66,7 +63,7 @@ class DnsLookupCommand extends Command
     {
         $lines = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
-        if (!$lines) {
+        if (! $lines) {
             return null;
         }
 

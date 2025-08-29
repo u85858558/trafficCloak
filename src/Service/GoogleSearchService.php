@@ -1,49 +1,32 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Service;
 
 use App\Helper\SentenceGenerator;
-use Facebook\WebDriver\Remote\RemoteWebDriver;
+use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
+use Facebook\WebDriver\Remote\RemoteWebDriver;
 use Facebook\WebDriver\WebDriverBy;
 use Psr\Log\LoggerInterface;
 
 class GoogleSearchService
 {
     private const GOOGLE_BASE_URL = 'https://www.google.com';
-    private LoggerInterface $logger;
-    private SentenceGenerator $sentenceGenerator;
 
-    /**
-     * @throws \Exception
-     */
-    public function __construct(LoggerInterface $logger)
+    private readonly SentenceGenerator $sentenceGenerator;
+
+    public function __construct(private readonly LoggerInterface $logger)
     {
-        $this->logger = $logger;
         $this->sentenceGenerator = new SentenceGenerator();
         $this->fill();
     }
 
-    /**
-     * @throws \Exception
-     */
-    private function fill()
-    {
-        $this->sentenceGenerator->loadTemplatesFromFile('data/sentence.txt');
-        $this->sentenceGenerator->addWordPoolFromFile("[noun]", "data/nouns.txt");
-        $this->sentenceGenerator->addWordPoolFromFile("[object]", "data/object.txt");
-        $this->sentenceGenerator->addWordPoolFromFile("[verb]", "data/verb.txt");
-        $this->sentenceGenerator->addWordPoolFromFile("[number]", "data/number.txt");
-    }
-
-    /**
-     * @throws \Exception
-     */
     public function search(): void
     {
         $keywords = $this->getKeywords();
-        $this->logSearch($keywords);
+        $this->logger->info('Searching Google for: ' . implode(' ', $keywords));
 
         $driver = $this->getBrowser();
         $this->performSearch($driver, $keywords);
@@ -55,49 +38,94 @@ class GoogleSearchService
         $driver->quit();
     }
 
-    private function logSearch(array $keywords): void
+    private function fill(): void
     {
-        $this->logger->info('Searching Google for: ' . implode(' ', $keywords));
+        $this->sentenceGenerator->loadTemplatesFromFile('data/sentence.txt');
+        $this->sentenceGenerator->addWordPoolFromFile('[noun]', 'data/nouns.txt');
+        $this->sentenceGenerator->addWordPoolFromFile('[object]', 'data/object.txt');
+        $this->sentenceGenerator->addWordPoolFromFile('[verb]', 'data/verb.txt');
+        $this->sentenceGenerator->addWordPoolFromFile('[number]', 'data/number.txt');
     }
 
-    private function performSearch($driver, array $keywords): void
+    private function performSearch(RemoteWebDriver $driver, array $keywords): void
     {
         $driver->get(self::GOOGLE_BASE_URL);
         $searchBox = $driver->findElement(WebDriverBy::name('q'));
         $searchBox->sendKeys(implode(' ', $keywords));
         $searchBox->submit();
-        $resultsText = $driver->findElement(WebDriverBy::id('result-stats'))->getText();
-        $this->logger->debug('Search results: ' . $resultsText);
+
+        sleep(2);
+
+        $resultSelectors = [
+            '#result-stats',
+            '#search',
+            '#rso',
+        ];
+
+        foreach ($resultSelectors as $selector) {
+            try {
+                $element = $driver->findElement(WebDriverBy::cssSelector($selector));
+                if ($element) {
+                    break;
+                }
+            } catch (\Exception) {
+                continue;
+            }
+        }
     }
 
     /**
      * TODO: This can be modified to include actual logic if needed
-     * @return bool
      */
     private function shouldClickThrough(): bool
     {
         return true;
     }
 
-    private function clickRandomLink($driver): void
+    private function clickRandomLink(RemoteWebDriver $driver): void
     {
-        $links = $driver->findElements(WebDriverBy::cssSelector('h3 > a'));
-        $validLinks = array_filter($links, fn($link) => $this->urlIsAbsolute($link->getAttribute('href')));
+        $linkSelectors = [
+            'a[jsname="UWckNb"]',
+            'h3 > a',
+            '[data-ved] h3 a',
+            'div[data-ved] a[href^="http"]',
+            '#search a[href^="http"]:not([href*="google.com"])',
+            '#rso a[href^="http"]:not([href*="google.com"])',
+            'cite + a',
+            'a[ping]',
+        ];
 
-        if (!empty($validLinks)) {
+        $links = [];
+        foreach ($linkSelectors as $selector) {
+            try {
+                $foundLinks = $driver->findElements(WebDriverBy::cssSelector($selector));
+                if (! empty($foundLinks)) {
+                    $links = $foundLinks;
+                    break;
+                }
+            } catch (\Exception) {
+                continue;
+            }
+        }
+
+        $validLinks = array_filter($links, fn (\Facebook\WebDriver\Remote\RemoteWebElement $link): bool => $this->urlIsAbsolute($link->getAttribute('href')));
+
+        if ($validLinks !== []) {
             $randomLink = $validLinks[array_rand($validLinks)];
-            $this->logger->info('Clicking link: ' . $randomLink->getAttribute('href'));
-            $driver->get($randomLink->getAttribute('href'));
+            $href = $randomLink->getAttribute('href');
+            $this->logger->info('Clicking link: ' . $href);
 
-            $this->processClickDepth($driver, 2);
+            try {
+                $driver->get($href);
+                $this->processClickDepth($driver, 2);
+            } catch (\Exception $e) {
+                $this->logger->warning('Failed to click link: ' . $e->getMessage());
+            }
+        } else {
+            $this->logger->warning('No valid links found on search results page');
         }
     }
 
-    /**
-     * Replace with actual logic to retrieve keywords
-     * @return string[]
-     * @throws \Exception
-     */
     private function getKeywords(): array
     {
         $sentence = $this->sentenceGenerator->generateSentence();
@@ -106,12 +134,25 @@ class GoogleSearchService
 
     private function urlIsAbsolute(string $url): bool
     {
-        return (bool)parse_url($url, PHP_URL_HOST);
+        return (bool) parse_url($url, PHP_URL_HOST);
     }
 
     private function getBrowser(): RemoteWebDriver
     {
-        return RemoteWebDriver::create('http://selenium:4444', DesiredCapabilities::chrome());
+        $capabilities = DesiredCapabilities::chrome();
+
+        $chromeOptions = new ChromeOptions();
+        $chromeOptions->addArguments([
+            '--no-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--headless',
+            '--window-size=1920,1080',
+        ]);
+
+        $capabilities->setCapability(ChromeOptions::CAPABILITY, $chromeOptions);
+
+        return RemoteWebDriver::create('http://selenium:4444', $capabilities);
     }
 
     private function processClickDepth(RemoteWebDriver $driver, int $depth): void

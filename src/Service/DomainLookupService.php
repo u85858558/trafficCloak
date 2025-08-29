@@ -8,17 +8,14 @@ use Psr\Log\LoggerInterface;
 
 class DomainLookupService
 {
-    private LoggerInterface $logger;
-
-    public function __construct(LoggerInterface $logger)
+    public function __construct(private readonly LoggerInterface $logger)
     {
-        $this->logger = $logger;
     }
 
     public function lookupDomains(string $csvFile): void
     {
         $lines = file($csvFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        if (!$lines) {
+        if (! $lines) {
             $this->logger->error('Failed to read from CSV file.');
             return;
         }

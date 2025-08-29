@@ -9,9 +9,10 @@ use Exception;
 class SentenceGenerator
 {
     private array $templates = [];
+
     private array $wordPools = [];
 
-    public function addTemplate($template)
+    public function addTemplate($template): void
     {
         $this->templates[] = $template;
     }
@@ -21,8 +22,8 @@ class SentenceGenerator
      */
     public function loadTemplatesFromFile(string $filePath): void
     {
-        if (!file_exists($filePath)) {
-            throw new Exception("File not found: " . $filePath);
+        if (! file_exists($filePath)) {
+            throw new Exception('File not found: ' . $filePath);
         }
 
         $lines = file($filePath, FILE_IGNORE_NEW_LINES);
@@ -35,12 +36,12 @@ class SentenceGenerator
     /**
      * @throws Exception
      */
-    public function addWordPoolFromFile($placeholder, $filePath) {
-        if (!file_exists($filePath)) {
-            throw new Exception("File not found: " . $filePath);
+    public function addWordPoolFromFile($placeholder, string $filePath): void
+    {
+        if (! file_exists($filePath)) {
+            throw new Exception('File not found: ' . $filePath);
         }
 
-        // Read the file and split its contents into an array of words
         $words = file($filePath, FILE_IGNORE_NEW_LINES);
         $this->wordPools[$placeholder] = $words;
     }
@@ -50,7 +51,7 @@ class SentenceGenerator
      */
     public function generateSentence()
     {
-        if (empty($this->templates)) {
+        if ($this->templates === []) {
             throw new Exception('No available.');
         }
 

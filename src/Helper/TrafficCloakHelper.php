@@ -6,22 +6,19 @@ use Symfony\Component\Filesystem\Filesystem;
 
 class TrafficCloakHelper
 {
-    private string $dataDir;
-
-    public function __construct(string $dataDir)
+    public function __construct(private readonly string $dataDir)
     {
-        $this->dataDir = $dataDir;
     }
 
     public function generateWordlist(string $wordFile, int $minLength = 5, int $maxLength = 20): array
     {
         $filePath = $this->dataDir . '/' . $wordFile;
-        if (!file_exists($filePath)) {
-            throw new \InvalidArgumentException("Wordlist file not found: $filePath");
+        if (! file_exists($filePath)) {
+            throw new \InvalidArgumentException("Wordlist file not found: {$filePath}");
         }
 
         $words = [];
-        $pattern = "/^.{" . $minLength . "," . $maxLength . "}$/";
+        $pattern = '/^.{' . $minLength . ',' . $maxLength . '}$/';
 
         foreach (file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
             $word = trim($line);
@@ -56,8 +53,8 @@ class TrafficCloakHelper
 
     public function getRandomLine(string $file): string
     {
-        if (!file_exists($file)) {
-            throw new \InvalidArgumentException("File not found: $file");
+        if (! file_exists($file)) {
+            throw new \InvalidArgumentException("File not found: {$file}");
         }
 
         $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -66,12 +63,12 @@ class TrafficCloakHelper
 
     public function urlIsAbsolute(string $url): bool
     {
-        return (bool)parse_url($url, PHP_URL_SCHEME);
+        return (bool) parse_url($url, PHP_URL_SCHEME);
     }
 
     public function processClickDepth($browser, $clickDepth = null): void
     {
-        $clickCount = is_numeric($clickDepth) ? (int)$clickDepth : rand(...explode('..', $clickDepth));
+        $clickCount = is_numeric($clickDepth) ? (int) $clickDepth : random_int(...explode('..', (string) $clickDepth));
 
         for ($i = 0; $i < $clickCount; $i++) {
             $links = $browser->findElements(WebDriverBy::tagName('a'));
@@ -80,16 +77,16 @@ class TrafficCloakHelper
             }
 
             $link = $links[array_rand($links)]->getAttribute('href');
-            if (!$this->urlIsAbsolute($link)) {
+            if (! $this->urlIsAbsolute($link)) {
                 $link = $browser->getCurrentURL() . $link;
             }
 
             try {
                 $browser->get($link);
                 if ($i + 1 < $clickCount) {
-                    usleep(rand(500000, 2000000)); // Sleep between 0.5 and 2 seconds
+                    usleep(random_int(500000, 2000000)); // Sleep between 0.5 and 2 seconds
                 }
-            } catch (\Exception $e) {
+            } catch (\Exception) {
             }
         }
     }
@@ -99,8 +96,8 @@ class TrafficCloakHelper
         $filesystem = new Filesystem();
         $chromeDriverPath = $this->dataDir . '/chromedriver';
 
-        if (!$filesystem->exists($chromeDriverPath)) {
-            throw new \RuntimeException("Chromedriver not found: $chromeDriverPath");
+        if (! $filesystem->exists($chromeDriverPath)) {
+            throw new \RuntimeException("Chromedriver not found: {$chromeDriverPath}");
         }
 
         $browser = PantherTestCase::createPantherClient([

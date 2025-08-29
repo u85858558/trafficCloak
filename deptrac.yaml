@@ -1,0 +1,38 @@
+deptrac:
+  paths:
+    - ./src
+  layers:
+    - name: Controller
+      collectors:
+        - type: className
+          regex: .*Controller.*
+    - name: Service
+      collectors:
+        - type: className
+          regex: .*Service.*
+    - name: Command
+      collectors:
+        - type: className
+          regex: .*Command.*
+    - name: Helper
+      collectors:
+        - type: className
+          regex: .*Helper.*
+    - name: Handler
+      collectors:
+        - type: className
+          regex: .*Handler.*
+  ruleset:
+    Controller:
+      - Service
+      - Helper
+    Service:
+      - Helper
+    Command:
+      - Service
+      - Helper
+    Handler:
+      - Service
+      - Helper
+  skip_violations:
+    - App\Kernel

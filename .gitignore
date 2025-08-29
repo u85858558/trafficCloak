@@ -9,3 +9,13 @@
 /vendor/
 ###< symfony/framework-bundle ###
 /.idea
+.aider*
+.env
+
+###> deptrac/deptrac ###
+/.deptrac.cache
+###< deptrac/deptrac ###
+
+###> phpstan/phpstan ###
+phpstan.neon
+###< phpstan/phpstan ###
