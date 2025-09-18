@@ -9,11 +9,11 @@
         "ext-iconv": "*",
         "ext-pcntl": "*",
         "ext-posix": "*",
-        "guzzlehttp/guzzle": "^7.8",
-        "php-webdriver/webdriver": "^1.15",
+        "guzzlehttp/guzzle": "^7.10",
+        "php-webdriver/webdriver": "^1.15.2",
         "symfony/console": "7.2.*",
         "symfony/dotenv": "7.2.*",
-        "symfony/flex": "^2",
+        "symfony/flex": "^2.8.2",
         "symfony/framework-bundle": "7.2.*",
         "symfony/http-client": "7.2.*",
         "symfony/lock": "7.2.*",
@@ -77,9 +77,11 @@
     },
     "require-dev": {
         "deptrac/deptrac": "^3.0",
-        "psalm/plugin-symfony": "^5.2",
-        "rector/rector": "^2.1",
-        "symplify/easy-coding-standard": "^12.5",
-        "vimeo/psalm": "^5.26"
+        "phpunit/phpunit": "^10.5",
+        "psalm/plugin-symfony": "^5.2.6",
+        "rector/rector": "^2.1.7",
+        "symfony/phpunit-bridge": "^7.3.3",
+        "symplify/easy-coding-standard": "^12.6",
+        "vimeo/psalm": "^5.26.1"
     }
 }
