@@ -1,18 +1,16 @@
+init:
+	make composer-install
+	make up
+	@echo "Project initialized! Use 'make loop' to start the service."
+
+run:
+	docker-compose exec app php bin/console app:main --loop --datadir=./data
 
 up:
 	docker-compose up -d
 
 stop:
 	docker-compose stop
-
-start:
-	docker-compose exec app bash php bin/console app:traffic-daemon
-
-run:
-	docker-compose exec app bash php bin/console app:main --datadir=./data
-
-daemon:
-	docker-compose exec app bash php bin/console app:main --daemon --datadir=/data/top-1m.csv --logfile=/var/log/traffic.log
 
 shell:
 	docker-compose exec app bash
@@ -44,3 +42,9 @@ rector:
 
 rector-fix:
 	docker-compose run --rm composer exec rector
+
+psalm:
+	docker-compose run --rm composer exec -- psalm -c psalm.xml
+
+psalm-baseline:
+	docker-compose run --rm composer exec -- psalm -c psalm.xml --set-baseline=psalm-baseline.xml

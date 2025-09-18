@@ -10,6 +10,7 @@ use Facebook\WebDriver\Remote\DesiredCapabilities;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
 use Facebook\WebDriver\WebDriverBy;
 use Psr\Log\LoggerInterface;
+use Facebook\WebDriver\Remote\RemoteWebElement;
 
 class GoogleSearchService
 {
@@ -49,28 +50,49 @@ class GoogleSearchService
 
     private function performSearch(RemoteWebDriver $driver, array $keywords): void
     {
-        $driver->get(self::GOOGLE_BASE_URL);
-        $searchBox = $driver->findElement(WebDriverBy::name('q'));
-        $searchBox->sendKeys(implode(' ', $keywords));
-        $searchBox->submit();
-
-        sleep(2);
-
-        $resultSelectors = [
-            '#result-stats',
-            '#search',
-            '#rso',
+        $query = trim(implode(' ', $keywords));
+        $params = [
+            'q'  => $query,
+            'hl' => 'en',
+            // 'num' => 10,  // number of results (optional)
+            // 'pws' => '0', // disable personalized search (optional)
+            // 'safe' => 'off', // safe search (optional)
         ];
 
-        foreach ($resultSelectors as $selector) {
-            try {
-                $element = $driver->findElement(WebDriverBy::cssSelector($selector));
-                if ($element) {
-                    break;
-                }
-            } catch (\Exception) {
-                continue;
+        $url = self::GOOGLE_BASE_URL . '/search?' . http_build_query($params);
+        $this->logger->info('Navigating to Google results URL: ' . $url);
+
+        $fromUrl = $driver->getCurrentURL();
+        $driver->navigate()->to($url);
+        $this->logger->info('After navigation to search', [
+            'from' => $fromUrl,
+            'to'   => $driver->getCurrentURL(),
+            'title'=> $driver->getTitle(),
+        ]);
+
+        $consentSelectors = [
+            'button#L2AG',
+            'form[action*="consent"] button[type="submit"]',
+            'button[aria-label="Accept all"]',
+            'div[role="dialog"] form [type="submit"]',
+        ];
+        try {
+            $btn = $this->findFirstElementBySelectors($driver, $consentSelectors);
+            if ($btn) {
+                $btn->click();
+                sleep(1);
             }
+        } catch (\Throwable) {}
+
+        $searchResultSelectors = [
+            '#search',
+            '#rso',
+            '#result-stats',
+        ];
+
+        $ready = $this->waitForAnySelector($driver, $searchResultSelectors, 10_000);
+        if (! $ready) {
+            sleep(2);
         }
     }
 
@@ -95,20 +117,12 @@ class GoogleSearchService
             'a[ping]',
         ];
 
-        $links = [];
-        foreach ($linkSelectors as $selector) {
-            try {
-                $foundLinks = $driver->findElements(WebDriverBy::cssSelector($selector));
-                if (! empty($foundLinks)) {
-                    $links = $foundLinks;
-                    break;
-                }
-            } catch (\Exception) {
-                continue;
-            }
-        }
+        $links = $this->findFirstNonEmptyElementsBySelectors($driver, $linkSelectors);
 
-        $validLinks = array_filter($links, fn (\Facebook\WebDriver\Remote\RemoteWebElement $link): bool => $this->urlIsAbsolute($link->getAttribute('href')));
+        $validLinks = array_filter(
+            $links,
+            fn (RemoteWebElement $link): bool => $this->urlIsAbsolute($link->getAttribute('href'))
+        );
 
         if ($validLinks !== []) {
             $randomLink = $validLinks[array_rand($validLinks)];
@@ -116,7 +130,17 @@ class GoogleSearchService
             $this->logger->info('Clicking link: ' . $href);
 
             try {
+                $before = $driver->getCurrentURL();
+                $this->logger->info('Navigating to clicked link', ['from' => $before, 'to' => $href]);
+
                 $driver->get($href);
+
+                $final = $this->waitForUrlChange($driver, $before, 15_000) ?? $driver->getCurrentURL();
+                $this->logger->info('After click navigation', [
+                    'landed' => $final,
+                    'title'  => $driver->getTitle(),
+                ]);
+
                 $this->processClickDepth($driver, 2);
             } catch (\Exception $e) {
                 $this->logger->warning('Failed to click link: ' . $e->getMessage());
@@ -140,18 +164,22 @@ class GoogleSearchService
     private function getBrowser(): RemoteWebDriver
     {
         $capabilities = DesiredCapabilities::chrome();
-
         $chromeOptions = new ChromeOptions();
-        $chromeOptions->addArguments([
+
+        // for VNC/noVNC debugging: set SELENIUM_HEADLESS=0
+        $headless = (($_SERVER['SELENIUM_HEADLESS'] ?? '1') !== '0');
+        $args = [
             '--no-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            '--headless',
             '--window-size=1920,1080',
-        ]);
+        ];
+        if ($headless) {
+            $args[] = '--headless=new';
+        }
+        $chromeOptions->addArguments($args);
 
         $capabilities->setCapability(ChromeOptions::CAPABILITY, $chromeOptions);
-
         return RemoteWebDriver::create('http://selenium:4444', $capabilities);
     }
 
@@ -167,5 +195,67 @@ class GoogleSearchService
             $this->logger->info('Following link: ' . $randomLink->getAttribute('href'));
             $driver->get($randomLink->getAttribute('href'));
         }
+    }
+
+    private function waitForUrlChange(RemoteWebDriver $driver, string $fromUrl, int $timeoutMs = 5_000): ?string
+    {
+        $deadline = microtime(true) + ($timeoutMs / 1000);
+        $last = $fromUrl;
+
+        while (microtime(true) < $deadline) {
+            usleep(200_000); // 200ms
+            try {
+                $current = $driver->getCurrentURL();
+            } catch (\Throwable) {
+                continue;
+            }
+            if ($current !== $last) {
+                return $current;
+            }
+        }
+
+        return null;
+    }
+
+    private function findFirstElementBySelectors(RemoteWebDriver $driver, array $selectors): ?RemoteWebElement
+    {
+        foreach ($selectors as $selector) {
+            try {
+                return $driver->findElement(WebDriverBy::cssSelector($selector));
+            } catch (\Throwable) {}
+        }
+        return null;
+    }
+
+    private function findFirstNonEmptyElementsBySelectors(RemoteWebDriver $driver, array $selectors): array
+    {
+        foreach ($selectors as $selector) {
+            try {
+                $elements = $driver->findElements(WebDriverBy::cssSelector($selector));
+                if (!empty($elements)) {
+                    return $elements;
+                }
+            } catch (\Throwable) {}
+        }
+        return [];
+    }
+
+    private function waitForAnySelector(RemoteWebDriver $driver, array $selectors, int $timeoutMs): bool
+    {
+        $deadline = microtime(true) + ($timeoutMs / 1000);
+
+        while (microtime(true) < $deadline) {
+            foreach ($selectors as $selector) {
+                try {
+                    $el = $driver->findElement(WebDriverBy::cssSelector($selector));
+                    if ($el) {
+                        return true;
+                    }
+                } catch (\Throwable) {}
+            }
+            usleep(250_000); // 250ms
+        }
+
+        return false;
     }
 }

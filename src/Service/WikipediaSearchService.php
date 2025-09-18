@@ -13,20 +13,12 @@ use Psr\Log\LoggerInterface;
 class WikipediaSearchService
 {
     private const RANDOM_ARTICLE_URL = 'https://en.wikipedia.org/wiki/Special:Random';
-
     private int $maxDepth = 5;
-
-    // Maximum number of links to follow
     private int $maxLinksPerPage = 10;
 
     public function __construct(private readonly LoggerInterface $logger)
-    {
-        // Maximum links to consider per page
-    }
+    {}
 
-    /**
-     * Start crawling from a random Wikipedia article
-     */
     public function crawl(): void
     {
         $driver = $this->getBrowser();
@@ -34,12 +26,8 @@ class WikipediaSearchService
         try {
             $this->logger->info('Starting Wikipedia random article crawl');
 
-            // Start with a random article
             $this->visitRandomArticle($driver);
-
-            // Follow internal links naturally
             $this->followInternalLinks($driver, $this->maxDepth);
-
         } catch (\Exception $e) {
             $this->logger->error('Wikipedia crawl failed: ' . $e->getMessage());
         } finally {
@@ -47,17 +35,11 @@ class WikipediaSearchService
         }
     }
 
-    /**
-     * Set maximum crawl depth
-     */
     public function setMaxDepth(int $depth): void
     {
         $this->maxDepth = max(1, $depth);
     }
 
-    /**
-     * Set maximum links to consider per page
-     */
     public function setMaxLinksPerPage(int $maxLinks): void
     {
         $this->maxLinksPerPage = max(1, $maxLinks);
@@ -67,7 +49,6 @@ class WikipediaSearchService
     {
         $driver->get(self::RANDOM_ARTICLE_URL);
 
-        // Wait for page to load
         sleep(2);
 
         $currentUrl = $driver->getCurrentURL();
@@ -76,7 +57,6 @@ class WikipediaSearchService
         $this->logger->info('Visited random article: ' . $pageTitle);
         $this->logger->info('Article URL: ' . $currentUrl);
 
-        // Simulate reading time
         $readingTime = random_int(3, 8);
         $this->logger->debug('Simulating reading for ' . $readingTime . ' seconds');
         sleep($readingTime);
@@ -96,7 +76,6 @@ class WikipediaSearchService
             return;
         }
 
-        // Select a random internal link
         $randomLink = $internalLinks[array_rand($internalLinks)];
         $linkUrl = $randomLink->getAttribute('href');
         $linkText = trim((string) $randomLink->getText());
@@ -106,7 +85,6 @@ class WikipediaSearchService
         try {
             $driver->get($linkUrl);
 
-            // Wait for page to load
             sleep(2);
 
             $pageTitle = $driver->getTitle();
@@ -116,12 +94,10 @@ class WikipediaSearchService
             $readingTime = random_int(2, 6);
             sleep($readingTime);
 
-            // Continue crawling from this page
             $this->followInternalLinks($driver, $remainingDepth - 1);
 
         } catch (\Exception $e) {
             $this->logger->warning('Failed to follow link: ' . $e->getMessage());
-            // Try to continue with remaining depth
             $this->followInternalLinks($driver, $remainingDepth - 1);
         }
     }
@@ -143,14 +119,13 @@ class WikipediaSearchService
 
                 if (! empty($links)) {
                     $this->logger->debug('Found ' . count($links) . ' links with selector: ' . $selector);
-                    break; // Use the first selector that finds links
+                    break;
                 }
             } catch (\Exception) {
                 continue;
             }
         }
 
-        // Filter out unwanted links and limit the number
         $validLinks = array_filter($allLinks, function (\Facebook\WebDriver\Remote\RemoteWebElement $link): bool {
             $href = $link->getAttribute('href');
             $text = trim($link->getText());
@@ -162,7 +137,6 @@ class WikipediaSearchService
                    strlen($text) < 100; // Avoid very long link texts
         });
 
-        // Shuffle and limit the links to make selection more natural
         shuffle($validLinks);
         return array_slice($validLinks, 0, $this->maxLinksPerPage);
     }
