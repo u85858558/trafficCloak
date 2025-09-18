@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Command;
@@ -12,11 +13,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name: 'app:google:search')]
 class GoogleSearchCommand extends Command
 {
-    private GoogleSearchService $service;
-
-    public function __construct(GoogleSearchService $searchService)
+    public function __construct(private readonly GoogleSearchService $service)
     {
-        $this->service = $searchService;
         parent::__construct();
     }
 
